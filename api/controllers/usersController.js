@@ -38,7 +38,10 @@ const createNewUser = asyncHandler(async (req, res) => {
   const user = await User.create(userObject);
 
   if (user) {
-    res.status(201).json({ message: `User ${username} created.` });
+    const result = await User.findById(user._id)
+      .select("-password -__v")
+      .lean();
+    res.status(201).json(result);
   } else {
     res.status(400).json({ message: "Invalid user data received." });
   }
@@ -81,8 +84,11 @@ const updateUser = asyncHandler(async (req, res) => {
   }
 
   const updatedUser = await user.save();
+  const result = await User.findById(updatedUser._id)
+    .select("-password")
+    .lean();
 
-  res.status(200).json({ message: `User ${updatedUser.username} updated.` });
+  res.status(200).json(result);
 });
 
 //  @desc Delete a user
@@ -105,11 +111,9 @@ const deleteUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: `User id ${id} not found.` });
   }
 
-  const result = await user.deleteOne();
+  await user.deleteOne();
 
-  const reply = `Username ${result.username} with ID ${result._id} deleted.`;
-
-  res.status(200).json(reply);
+  res.status(204).send();
 });
 
 module.exports = {
