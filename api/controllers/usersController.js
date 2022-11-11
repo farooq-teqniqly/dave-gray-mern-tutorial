@@ -48,10 +48,10 @@ const createNewUser = asyncHandler(async (req, res) => {
 //  @route PATCH /users
 //  @access Private
 const updateUser = asyncHandler(async (req, res) => {
-  const { id, username, roles, active, password } = req.body;
+  const { id } = req.params;
+  const { username, roles, active, password } = req.body;
 
   if (
-    !id ||
     !username ||
     !Array.isArray(roles) ||
     !roles.length ||
@@ -89,11 +89,7 @@ const updateUser = asyncHandler(async (req, res) => {
 //  @route DELETE /users
 //  @access Private
 const deleteUser = asyncHandler(async (req, res) => {
-  const { id } = req.body;
-
-  if (!id) {
-    return res.status(400).json({ message: "User ID required." });
-  }
+  const { id } = req.params;
 
   const notes = await Note.findOne({ user: id }).lean().exec();
 
@@ -106,7 +102,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(id).exec();
 
   if (!user) {
-    return res.status(400).json({ message: "User not found." });
+    return res.status(400).json({ message: `User id ${id} not found.` });
   }
 
   const result = await user.deleteOne();
