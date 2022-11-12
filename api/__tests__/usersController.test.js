@@ -1,8 +1,20 @@
 const mongoose = require("mongoose");
 const app = require("../server");
 const request = require("supertest");
-const bcrypt = require("bcrypt");
-const { v4: uuid } = require("uuid");
+
+const badUserId = "999999999999999999999999";
+
+const getTestUser = (
+  username = "Farooq",
+  password = "1234",
+  roles = ["User"]
+) => {
+  return {
+    username,
+    password,
+    roles,
+  };
+};
 
 const deleteAllUsers = async () => {
   const res = await request(app).get("/users");
@@ -28,8 +40,8 @@ describe("Get all users", () => {
 
   it("Returns the users", async () => {
     const expectedUsers = [
-      { username: "UserA", password: "1234", roles: ["User"] },
-      { username: "UserB", password: "1234", roles: ["User"] },
+      getTestUser((username = "UserA")),
+      getTestUser((username = "UserB")),
     ];
 
     for (let i = 0; i < expectedUsers.length; i++) {
@@ -57,7 +69,7 @@ describe("Get a single user", () => {
   let actualUser;
 
   beforeAll(async () => {
-    expectedUser = { username: "Farooq", password: "1234", roles: ["User"] };
+    expectedUser = getTestUser();
     const res = await request(app).post("/users").send(expectedUser);
     actualUser = res.body;
   });
@@ -83,7 +95,7 @@ describe("Create user", () => {
   });
 
   beforeEach(() => {
-    user = { username: "Farooq", password: "1234", roles: ["User"] };
+    user = getTestUser();
   });
 
   it("Returns an error message when username is missing", async () => {
@@ -139,5 +151,97 @@ describe("Create user", () => {
     expect(active).toBe(true);
     expect(createdAt).not.toBe(null);
     expect(updatedAt).toBe(createdAt);
+  });
+});
+
+describe("Update user", () => {
+  let user;
+  let createdUser;
+
+  beforeAll(async () => {
+    await deleteAllUsers();
+
+    user = getTestUser();
+    createdUser = await request(app).post("/users").send(user);
+  });
+
+  it("Returns an error message when username is missing", async () => {
+    delete user.username;
+    const res = await request(app)
+      .patch(`/users/${createdUser._id}`)
+      .send(user);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("All fields are required.");
+  });
+
+  it("Returns an error message when password is missing", async () => {
+    delete user.password;
+    const res = await request(app)
+      .patch(`/users/${createdUser._id}`)
+      .send(user);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("All fields are required.");
+  });
+
+  it("Returns an error message when roles is missing", async () => {
+    delete user.roles;
+    const res = await request(app)
+      .patch(`/users/${createdUser._id}`)
+      .send(user);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("All fields are required.");
+  });
+
+  it("Returns an error message when roles is an empty array", async () => {
+    user.roles = [];
+    const res = await request(app)
+      .patch(`/users/${createdUser._id}`)
+      .send(user);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("All fields are required.");
+  });
+
+  it("Returns an error message when roles is not an array", async () => {
+    user.roles = "foo";
+    const res = await request(app)
+      .patch(`/users/${createdUser._id}`)
+      .send(user);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("All fields are required.");
+  });
+
+  it("Returns an error message when active attribute is missing", async () => {
+    delete user.active;
+    const res = await request(app)
+      .patch(`/users/${createdUser._id}`)
+      .send(user);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("All fields are required.");
+  });
+
+  it("Returns an error message when active attribute is not a boolean", async () => {
+    user.active = "true";
+    const res = await request(app)
+      .patch(`/users/${createdUser._id}`)
+      .send(user);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("All fields are required.");
+  });
+
+  it("Returns error when user not found.", async () => {
+    user = getTestUser();
+    user.active = true;
+    console.log(user);
+    const res = await request(app).patch(`/users/${badUserId}`).send(user);
+
+    expect(res.body.message).toBe("User not found.");
+    expect(res.status).toBe(404);
   });
 });
