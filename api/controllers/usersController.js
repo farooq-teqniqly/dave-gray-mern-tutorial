@@ -85,7 +85,7 @@ const updateUser = asyncHandler(async (req, res) => {
 
   const updatedUser = await user.save();
   const result = await User.findById(updatedUser._id)
-    .select("-password")
+    .select("-password -__v")
     .lean();
 
   res.status(200).json(result);
