@@ -60,6 +60,8 @@ describe("Get all users", () => {
       expect(actualUsers[i].active).toBe(true);
       expect(actualUsers[i].createdAt).not.toBe(null);
       expect(actualUsers[i].updatedAt).not.toBe(null);
+      expect(actualUsers[i]).not.toHaveProperty("password");
+      expect(actualUsers[i]).not.toHaveProperty("__v");
     }
   });
 });
@@ -84,6 +86,8 @@ describe("Get a single user", () => {
     expect(active).toBe(actualUser.active);
     expect(createdAt).toBe(actualUser.createdAt);
     expect(updatedAt).toBe(actualUser.updatedAt);
+    expect(res.body).not.toHaveProperty("password");
+    expect(res.body).not.toHaveProperty("__v");
   });
 });
 
@@ -151,6 +155,8 @@ describe("Create user", () => {
     expect(active).toBe(true);
     expect(createdAt).not.toBe(null);
     expect(updatedAt).toBe(createdAt);
+    expect(res.body).not.toHaveProperty("password");
+    expect(res.body).not.toHaveProperty("__v");
   });
 });
 
