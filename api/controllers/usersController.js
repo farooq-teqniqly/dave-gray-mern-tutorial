@@ -11,12 +11,16 @@ const removeFields = "-password -__v";
 //  @access Private
 const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.find().select(removeFields).lean();
-
-  if (!users?.length) {
-    return responseHelpers.badRequest(res, "No users found.");
-  }
-
   return responseHelpers.okWithContent(res, users);
+});
+
+//  @desc Get a single user
+//  @route GET /users/:id
+//  @access Private
+const getUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findById(id).select(removeFields).lean();
+  return responseHelpers.okWithContent(res, user);
 });
 
 //  @desc Create new user
@@ -39,13 +43,8 @@ const createNewUser = asyncHandler(async (req, res) => {
   const userObject = { username, password: hashedPassword, roles };
 
   const user = await User.create(userObject);
-
-  if (user) {
-    const result = await User.findById(user._id).select(removeFields).lean();
-    responseHelpers.createdWithContent(res, result);
-  } else {
-    responseHelpers.badRequest(res, "Invalid user data received.");
-  }
+  const result = await User.findById(user._id).select(removeFields).lean();
+  responseHelpers.createdWithContent(res, result);
 });
 
 //  @desc Update a user
@@ -76,7 +75,7 @@ const updateUser = asyncHandler(async (req, res) => {
     return responseHelpers.conflict(res, "Username already taken.");
   }
 
-  user.user = username;
+  user.username = username;
   user.roles = roles;
   user.active = active;
 
@@ -101,7 +100,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   const notes = await Note.findOne({ user: id }).lean().exec();
 
   if (notes) {
-    return responseHelpers.badRequest(
+    return responseHelpers.conflict(
       res,
       "Cannot delete user because it has assigned notes."
     );
@@ -109,17 +108,16 @@ const deleteUser = asyncHandler(async (req, res) => {
 
   const user = await User.findById(id).exec();
 
-  if (!user) {
-    return responseHelpers.badRequest(res, "User not found.");
+  if (user) {
+    await user.deleteOne();
   }
-
-  await user.deleteOne();
 
   responseHelpers.noContent(res);
 });
 
 module.exports = {
   getAllUsers,
+  getUser,
   createNewUser,
   updateUser,
   deleteUser,
