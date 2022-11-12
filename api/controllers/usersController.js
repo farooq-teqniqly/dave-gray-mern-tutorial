@@ -3,11 +3,13 @@ const Note = require("../models/Note");
 const asyncHandler = require("express-async-handler");
 const bcrypt = require("bcrypt");
 
+const removeFields = "-password -__v";
+
 //  @desc Get all users
 //  @route GET /users
 //  @access Private
 const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find().select("-password").lean();
+  const users = await User.find().select(removeFields).lean();
 
   if (!users?.length) {
     return res.status(400).json({ message: "No users found." });
@@ -38,9 +40,7 @@ const createNewUser = asyncHandler(async (req, res) => {
   const user = await User.create(userObject);
 
   if (user) {
-    const result = await User.findById(user._id)
-      .select("-password -__v")
-      .lean();
+    const result = await User.findById(user._id).select(removeFields).lean();
     res.status(201).json(result);
   } else {
     res.status(400).json({ message: "Invalid user data received." });
@@ -85,7 +85,7 @@ const updateUser = asyncHandler(async (req, res) => {
 
   const updatedUser = await user.save();
   const result = await User.findById(updatedUser._id)
-    .select("-password -__v")
+    .select(removeFields)
     .lean();
 
   res.status(200).json(result);
@@ -99,7 +99,7 @@ const deleteUser = asyncHandler(async (req, res) => {
 
   const notes = await Note.findOne({ user: id }).lean().exec();
 
-  if (notes?.length) {
+  if (notes) {
     return res
       .status(400)
       .json({ message: "Cannot delete user because it has assigned notes." });
