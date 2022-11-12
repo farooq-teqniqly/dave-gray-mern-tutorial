@@ -75,7 +75,7 @@ const updateUser = asyncHandler(async (req, res) => {
     return responseHelpers.conflict(res, "Username already taken.");
   }
 
-  user.user = username;
+  user.username = username;
   user.roles = roles;
   user.active = active;
 
@@ -100,7 +100,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   const notes = await Note.findOne({ user: id }).lean().exec();
 
   if (notes) {
-    return responseHelpers.badRequest(
+    return responseHelpers.conflict(
       res,
       "Cannot delete user because it has assigned notes."
     );
@@ -108,11 +108,9 @@ const deleteUser = asyncHandler(async (req, res) => {
 
   const user = await User.findById(id).exec();
 
-  if (!user) {
-    return responseHelpers.badRequest(res, "User not found.");
+  if (user) {
+    await user.deleteOne();
   }
-
-  await user.deleteOne();
 
   responseHelpers.noContent(res);
 });
