@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server",
     "dev": "nodemon server",
-    "test": "jest --detectOpenHandles --force-exit"
+    "test": "jest --detectOpenHandles --force-exit --coverage"
   },
   "keywords": [],
   "author": "",

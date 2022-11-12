@@ -166,6 +166,13 @@ describe("Create user", () => {
     expect(res.body).not.toHaveProperty("password");
     expect(res.body).not.toHaveProperty("__v");
   });
+
+  it("Returns an error if the username is taken", async () => {
+    const res = await request(app).post("/users").send(user);
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("Username already taken.");
+  });
 });
 
 describe("Update user", () => {
