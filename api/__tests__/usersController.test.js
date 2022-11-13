@@ -24,24 +24,63 @@ const getTestNote = (completed = false) => {
   };
 };
 
-const deleteAllUsers = async () => {
-  const res = await request(app).get("/users");
+const deleteUser = async (userId) => {
+  return await request(app).delete(`/users/${userId}`);
+};
+
+const getUsers = async () => {
+  return await request(app).get("/users");
+};
+
+const getUser = async (userId) => {
+  return await request(app).get(`/users/${userId}`);
+};
+
+const postUser = async (user) => {
+  return await request(app).post("/users").send(user);
+};
+
+const patchUser = async (userId, user) => {
+  return await request(app).patch(`/users/${userId}`).send(user);
+};
+
+const deleteNote = async (userId, noteId) => {
+  return await request(app).delete(`/users/${userId}/notes/${noteId}`);
+};
+
+const postNote = async (userId, note) => {
+  return await request(app).post(`/users/${userId}/notes`).send(note);
+};
+
+const getNotes = async () => {
+  return await request(app).get(`/users/${userId}/notes`);
+};
+
+const deleteAllUsersAndNotes = async () => {
+  const res = await getUsers();
   const users = res.body;
 
   for (let i = 0; i < users.length; i++) {
-    await request(app).delete(`/users/${users[i]._id}`);
+    userId = users[i]._id;
+    const notes = await getNotes(userId);
+
+    for (let j = 0; j < notes.length; j++) {
+      await deleteNote(userId, notes[i]._id);
+    }
+
+    await deleteUser(userId);
   }
 };
 
 beforeAll(async () => {
   await mongoose.disconnect();
   await mongoose.connect(process.env.DB_CONNECTION_STRING);
-  await deleteAllUsers();
+  await deleteAllUsersAndNotes();
 });
 
 describe("Get all users", () => {
   it("Returns an empty array when there are no users", async () => {
-    const res = await request(app).get("/users");
+    const res = await getUsers();
     expect(res.status).toBe(200);
     expect(res.body).toStrictEqual([]);
   });
@@ -53,10 +92,10 @@ describe("Get all users", () => {
     ];
 
     for (let i = 0; i < expectedUsers.length; i++) {
-      await request(app).post("/users").send(expectedUsers[i]);
+      await postUser(expectedUsers[i]);
     }
 
-    const res = await request(app).get("/users");
+    const res = await getUsers();
     const actualUsers = res.body;
 
     expect(actualUsers.length).toBe(2);
@@ -80,12 +119,12 @@ describe("Get a single user", () => {
 
   beforeAll(async () => {
     expectedUser = getTestUser();
-    const res = await request(app).post("/users").send(expectedUser);
+    const res = await postUser(expectedUser);
     actualUser = res.body;
   });
 
   it("Returns the user", async () => {
-    const res = await request(app).get(`/users/${actualUser._id}`);
+    const res = await getUser(actualUser._id);
     const { _id, username, roles, active, createdAt, updatedAt } = res.body;
 
     expect(_id).toBe(actualUser._id);
@@ -103,7 +142,7 @@ describe("Create user", () => {
   let user;
 
   beforeAll(async () => {
-    await deleteAllUsers();
+    await deleteAllUsersAndNotes();
   });
 
   beforeEach(() => {
@@ -112,7 +151,7 @@ describe("Create user", () => {
 
   it("Returns an error message when username is missing", async () => {
     delete user.username;
-    const res = await request(app).post("/users").send(user);
+    const res = await postUser(user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -120,7 +159,7 @@ describe("Create user", () => {
 
   it("Returns an error message when password is missing", async () => {
     delete user.password;
-    const res = await request(app).post("/users").send(user);
+    const res = await postUser(user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -128,7 +167,7 @@ describe("Create user", () => {
 
   it("Returns an error message when roles is missing", async () => {
     delete user.roles;
-    const res = await request(app).post("/users").send(user);
+    const res = await postUser(user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -136,7 +175,7 @@ describe("Create user", () => {
 
   it("Returns an error message when roles is an empty array", async () => {
     user.roles = [];
-    const res = await request(app).post("/users").send(user);
+    const res = await postUser(user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -144,14 +183,14 @@ describe("Create user", () => {
 
   it("Returns an error message when roles is not an array", async () => {
     user.roles = "foo";
-    const res = await request(app).post("/users").send(user);
+    const res = await postUser(user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
   });
 
   it("Creates the user", async () => {
-    const res = await request(app).post("/users").send(user);
+    const res = await postUser(user);
 
     expect(res.status).toBe(201);
 
@@ -168,7 +207,7 @@ describe("Create user", () => {
   });
 
   it("Returns an error if the username is taken", async () => {
-    const res = await request(app).post("/users").send(user);
+    const res = await postUser(user);
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("Username already taken.");
@@ -181,17 +220,17 @@ describe("Update user", () => {
   let createdUserId;
 
   beforeAll(async () => {
-    await deleteAllUsers();
+    await deleteAllUsersAndNotes();
 
     user = getTestUser();
-    res = await request(app).post("/users").send(user);
+    res = await postUser(user);
     createdUser = res.body;
     createdUserId = createdUser._id;
   });
 
   it("Returns an error message when username is missing", async () => {
     delete user.username;
-    const res = await request(app).patch(`/users/${createdUserId}`).send(user);
+    const res = await patchUser(createdUserId, user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -199,7 +238,7 @@ describe("Update user", () => {
 
   it("Returns an error message when password is missing", async () => {
     delete user.password;
-    const res = await request(app).patch(`/users/${createdUserId}`).send(user);
+    const res = await patchUser(createdUserId, user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -207,15 +246,14 @@ describe("Update user", () => {
 
   it("Returns an error message when roles is missing", async () => {
     delete user.roles;
-    const res = await request(app).patch(`/users/${createdUserId}`).send(user);
-
+    const res = await patchUser(createdUserId, user);
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
   });
 
   it("Returns an error message when roles is an empty array", async () => {
     user.roles = [];
-    const res = await request(app).patch(`/users/${createdUserId}`).send(user);
+    const res = await patchUser(createdUserId, user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -223,7 +261,7 @@ describe("Update user", () => {
 
   it("Returns an error message when roles is not an array", async () => {
     user.roles = "foo";
-    const res = await request(app).patch(`/users/${createdUserId}`).send(user);
+    const res = await patchUser(createdUserId, user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -231,7 +269,7 @@ describe("Update user", () => {
 
   it("Returns an error message when active attribute is missing", async () => {
     delete user.active;
-    const res = await request(app).patch(`/users/${createdUserId}`).send(user);
+    const res = await patchUser(createdUserId, user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -239,7 +277,7 @@ describe("Update user", () => {
 
   it("Returns an error message when active attribute is not a boolean", async () => {
     user.active = "true";
-    const res = await request(app).patch(`/users/${createdUserId}`).send(user);
+    const res = await patchUser(createdUserId, user);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("All fields are required.");
@@ -248,7 +286,7 @@ describe("Update user", () => {
   it("Returns error when user not found.", async () => {
     user = getTestUser();
     user.active = true;
-    const res = await request(app).patch(`/users/${badUserId}`).send(user);
+    const res = await patchUser(badUserId, user);
 
     expect(res.body.message).toBe("User not found.");
     expect(res.status).toBe(404);
@@ -261,9 +299,7 @@ describe("Update user", () => {
     createdUser.active = false;
     delete createdUser._id;
 
-    const res = await request(app)
-      .patch(`/users/${createdUserId}`)
-      .send(createdUser);
+    const res = await patchUser(createdUserId, createdUser);
 
     expect(res.status).toBe(200);
 
@@ -282,13 +318,11 @@ describe("Update user", () => {
 
   it("Returns an error if the updated username is already taken", async () => {
     const newUser = getTestUser((username = "User A"));
-    await request(app).post("/users").send(newUser);
+    await postUser(newUser);
 
     createdUser.username = newUser.username;
 
-    const res = await request(app)
-      .patch(`/users/${createdUserId}`)
-      .send(createdUser);
+    const res = await patchUser(createdUserId, createdUser);
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("Username already taken.");
@@ -297,29 +331,25 @@ describe("Update user", () => {
 
 describe("Delete user", () => {
   it("Does not return an error if the user does not exist", async () => {
-    const res = await request(app).delete(`/users/${badUserId}`);
+    const res = await deleteUser(badUserId);
     expect(res.status).toBe(204);
   });
 
   it("Returns error if user has notes", async () => {
     const user = getTestUser((username = "User note test"));
-    const createUserResult = await request(app).post("/users").send(user);
+    const createUserResult = await postUser(user);
     const { _id } = createUserResult.body;
 
     const note = getTestNote();
-    const createNoteResult = await request(app)
-      .post(`/users/${_id}/notes`)
-      .send(note);
-
-    const deleteUserResult = await request(app).delete(`/users/${_id}`);
+    const createNoteResult = await postNote(_id, note);
+    console.log(`Deleting user ${_id}...`);
+    const deleteUserResult = await deleteUser(_id);
 
     expect(deleteUserResult.status).toBe(409);
     expect(deleteUserResult.body.message).toBe(
       "Cannot delete user because it has assigned notes."
     );
 
-    await request(app).delete(
-      `/users/${_id}/notes/${createNoteResult.body._id}`
-    );
+    // await deleteNote(_id, createNoteResult.body._id);
   });
 });
